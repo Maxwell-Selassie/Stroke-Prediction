@@ -8,11 +8,8 @@ from typing import Dict, List, Tuple, Any, Optional, Union
 from pathlib import Path
 import logging
 import sys
+from utils import read_yaml, ensure_directory, read_csv, write_json, setup_logger
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from utils.io_utils import read_yaml, ensure_directory, read_csv, write_json
-from utils.logger import setup_logger
 
 class DataExecutionError(Exception):
     pass
@@ -126,7 +123,6 @@ class DataOverview:
 
         self.logger.info(f'Finished Analyzing {len(numeric_cols)} numeric : {numeric_cols}')
 
-        return num_summary, numeric_cols
     
     def _analyze_categorical_cols(self, df: pd.DataFrame):
         '''Analyze categorical columns'''
@@ -139,11 +135,12 @@ class DataOverview:
         
         cat_summary = df.describe(exclude=[np.number])
         self.logger.info(f'Finished analyzing {len(cat_cols)} categorical columns')
-        return cat_summary, cat_cols
+
 
     
     def get_config(self):
         return self.config
+    
     
     def run_data_overview(self):
         '''Execute all data overview functions'''
@@ -160,7 +157,4 @@ class DataOverview:
         self.logger.info(f'Data Overview done...')
         return results
     
-if __name__ == '__main__':
-    CONFIG_PATH = Path('config/eda_config.yaml')
-    data_overview = DataOverview(CONFIG_PATH)
-    data_overview.run_data_overview()
+
