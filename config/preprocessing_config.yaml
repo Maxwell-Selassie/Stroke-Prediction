@@ -1,0 +1,47 @@
+
+data:
+  file_path: 'data/raw/healthcare-dataset-stroke-data.csv'
+
+data_split:
+  dev_size: 610
+  test_size: 500
+  random_state: 42
+  stratify_column: 'stroke'
+
+missing_values:
+  enabled:  true
+  numeric:
+    strategy: 'mean'
+  categorical:
+    strategy: 'mode'
+
+# logging configuration
+logging:
+  log_dir: 'logs/'
+  log_level: 'INFO'
+  max_bytes: 10485760
+  backup_count: 7
+  format: '%(asctime)s -%(name) %(levelname)s -%(funcName)s:%(lineno)d - %(message)s'
+  date_format: '%Y-%m-%d %H:%M:%S'
+
+outliers:
+  enabled: false
+  cols_to_flag: ['avg_glucose_level','bmi']
+
+duplicates:
+  check_duplicates: true
+  subset_cols: null 
+
+
+encoding:
+  one_hot_columns: true
+
+transformations:
+  log_columns: ['bmi','age','avg_glucose_level']
+
+output:
+  processed_dir: 'data/processed'
+  pipeline_file: 'artifacts/data/preprocessing_pipeline.joblib'
+
+columns_to_drop: ['id']
+
