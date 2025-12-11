@@ -81,7 +81,7 @@ class PreprocessingPipeline:
             # stage 1: pre-split data cleaning
             self.logger.info(f'Pre-split data cleaning...')
             df = self.missing_handler.handle_missing(df)
-            df = self.duplicate_handler.handle_duplicates(df)
+            # df = self.duplicate_handler.handle_duplicates(df)
             df = self.drop_columns(df)
 
             # stage 2: split data
