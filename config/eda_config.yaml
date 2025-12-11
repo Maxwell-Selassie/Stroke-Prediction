@@ -95,7 +95,7 @@ visualization:
   # save options
   save_plots: true
   show_plots: true
-  bbox_inches: 'tight'
+
 
   # plot specific settings
   histogram:
@@ -107,10 +107,8 @@ visualization:
     meanline: true
 
   heatmap:
-    annot: true
-    fmt: '.2f'
-    cmap: 'Blues'
-    linewidths: 0.5
+    method: 'spearman'
+
 
 data_quality:
   missing_threshold_critical: 0.30
