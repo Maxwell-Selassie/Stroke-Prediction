@@ -41,16 +41,10 @@ class MissingHandler:
                 self.logger.warning(f'Handling missing values is not enabled (skipping...)')
                 return None
             
-            numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-            categorical_cols = df.select_dtypes(exclude=[np.number]).columns.tolist()
-
-            if numeric_cols:
-                numeric_strategy = self.config['numeric']['strategy']
-                if numeric_strategy == 'mean':
-                    num_missing_cols = df[missing_cols].select_dtypes(include=[np.number]).columns.tolist()
-                    if num_missing_cols:
-                        for col in num_missing_cols:
-                            df = df[col].fillna(df[col].mean())
+            numeric_strategy = self.config['numeric']['strategy']
+            if numeric_strategy == 'mean':
+                for col in missing_cols:
+                    df[col].fillna(df[col].mean(), inplace=True)
 
             # if categorical_cols:
             #     categorical_strategy = self.config['categorical']['strategy']
@@ -64,7 +58,7 @@ class MissingHandler:
             if missing_summary.sum() > 0:
                 self.logger.warning(f'Remaining missing values: \n{missing_summary[missing_summary > 0]}')
             else:
-                print(f'No missing values remaining')
+                self.logger.info(f'No missing values remaining')
 
             return df
     

@@ -71,17 +71,20 @@ class PreprocessingPipeline:
 
         return df
 
-    def fit_transform(self, df):
+    def fit_transform(self):
         '''Fit and transform training data, then transform dev/test'''
         try:
             self.logger.info('='*50)
             self.logger.info(f'STARTING PREPROCESSING PIPELINE')
             self.logger.info('='*50)
 
+            # stage 0
+            df = self._load_data()
+
             # stage 1: pre-split data cleaning
             self.logger.info(f'Pre-split data cleaning...')
+            df = self.duplicate_handler.handle_duplicates(df)
             df = self.missing_handler.handle_missing(df)
-            # df = self.duplicate_handler.handle_duplicates(df)
             df = self.drop_columns(df)
 
             # stage 2: split data
@@ -93,6 +96,7 @@ class PreprocessingPipeline:
             train_set = self.outlier_handler.handle_outliers(train_set, fit=True)
             train_set = self.feature_encoder.encode_features(train_set, fit=True)
             train_set = self.feature_transformer.transform_features(train_set, fit=True)
+            
 
             # stage 4: transform dev set
             self.logger.info(f'Transforming dev set')
@@ -100,11 +104,13 @@ class PreprocessingPipeline:
             dev_set = self.feature_encoder.encode_features(dev_set, fit=False)
             dev_set = self.feature_transformer.transform_features(dev_set, fit=False)
 
+
             # stage 5: transform test set
             self.logger.info(f'Transforming test set')
             test_set = self.outlier_handler.handle_outliers(test_set, fit=False)
             test_set = self.feature_encoder.encode_features(test_set, fit=False)
             test_set = self.feature_transformer.transform_features(test_set, fit=False)
+
 
             self.logger.info(f'Saving outputs...')
             self._save_datasets(train_set, dev_set, test_set)
@@ -158,10 +164,16 @@ def main():
 
     try:
         pipeline = PreprocessingPipeline()
-        # load df
-        df = pipeline._load_data()
 
-        train_set, dev_set, test_set = pipeline.fit_transform(df)
+        # fit - transform
+        train_set, dev_set, test_set = pipeline.fit_transform()
+
+        # save datasets
+        pipeline._save_datasets(train_set, dev_set, test_set)
+
+        # save pipeline
+        pipeline._save_pipeline()
+
 
         print(f'Preprocessing completed successfully')
 

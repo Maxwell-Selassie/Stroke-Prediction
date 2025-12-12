@@ -64,7 +64,7 @@ class DataSplitter:
             # validate class distributions
             self._validate_split(df, train_set, dev_set, test_set, stratify_col)
 
-            return train_set.reset_index(drop=True), dev_set.reset_index(drop=True), test_set.reset_index(drop=True), stratify_col
+            return train_set.reset_index(drop=True), dev_set.reset_index(drop=True), test_set.reset_index(drop=True)
         
         except Exception as e:
             self.logger.error(f'Error during data split: {e}')
