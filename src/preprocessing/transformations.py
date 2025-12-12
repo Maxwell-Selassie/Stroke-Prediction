@@ -20,7 +20,7 @@ class FeatureTransformer:
             ensure_directory(log_dir)
 
             logger = setup_logger(
-                name='data_quality',
+                name='transformations',
                 log_dir=log_dir,
                 log_level=log_config.get('log_level', 'INFO'),
                 max_bytes=log_config.get('max_bytes', 10485760),
