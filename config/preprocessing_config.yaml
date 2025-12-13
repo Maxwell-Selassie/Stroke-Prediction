@@ -27,6 +27,7 @@ logging:
 outliers:
   enabled: false
   cols_to_flag: ['avg_glucose_level','bmi']
+  drop_original: false
 
 duplicates:
   check_duplicates: true

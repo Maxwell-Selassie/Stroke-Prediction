@@ -131,6 +131,7 @@ def write_csv(
     df: pd.DataFrame,
     filepath: Union[str, Path],
     create_dirs: bool = True,
+    index: bool= True,
     **kwargs: Any
 ) -> None:
     """
@@ -149,7 +150,7 @@ def write_csv(
     
     try:
         logger.info(f"Writing CSV to: {filepath}")
-        df.to_csv(filepath, index=False, **kwargs)
+        df.to_csv(filepath, index=index, **kwargs)
         logger.info(f"Successfully wrote {len(df):,} rows to {filepath}")
     except Exception as e:
         logger.error(f"Failed to write CSV: {e}")

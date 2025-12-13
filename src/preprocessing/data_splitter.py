@@ -53,8 +53,8 @@ class DataSplitter:
 
             # second split: separate dev from train
             train_set, dev_set = train_test_split(
-                df, test_size=dev_size, random_state=random_state,
-                stratify=df[stratify_col] if stratify_col else None
+                train_dev_set, test_size=dev_size, random_state=random_state,
+                stratify=train_dev_set[stratify_col] if stratify_col else None
             )
 
             self.logger.info(f'Train set: {len(train_set)} rows ({(len(train_set)/ total_size)*100:.1f}%)')

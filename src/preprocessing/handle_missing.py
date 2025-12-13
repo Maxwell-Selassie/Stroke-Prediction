@@ -31,39 +31,52 @@ class MissingHandler:
             print(f'Error setting up logging system: {e}')
 
     def handle_missing(self, df, fit=True):
-        try:
-            self.logger.info(f'Handling missing_values - Before: {len(df)} rows')
-
-
-            missing_cols = df.columns[df.isnull().any()].tolist()
-
-            if not self.config['enabled']:
-                self.logger.warning(f'Handling missing values is not enabled (skipping...)')
-                return None
-            
-            numeric_strategy = self.config['numeric']['strategy']
-            if numeric_strategy == 'mean':
-                for col in missing_cols:
-                    df[col].fillna(df[col].mean(), inplace=True)
-
-            # if categorical_cols:
-            #     categorical_strategy = self.config['categorical']['strategy']
-            #     if categorical_strategy == 'mode':
-            #         cat_missing_cols = df[missing_cols].select_dtypes(exclude=[np.number]).columns.tolist()
-            #         if cat_missing_cols:
-            #             for col in cat_missing_cols:
-            #                 df = df[col].fillna(df[col].mode())
-
-            missing_summary = df.isnull().sum()
-            if missing_summary.sum() > 0:
-                self.logger.warning(f'Remaining missing values: \n{missing_summary[missing_summary > 0]}')
-            else:
-                self.logger.info(f'No missing values remaining')
-
+        self.logger.info(f'Handling missing values - Before: {len(df)} rows')
+        
+        if not self.config['enabled']:
+            self.logger.warning('Missing value handling disabled')
             return df
-    
-        except Exception as e:
-            self.logger.error(f'Error handling missing values: {e}')
-            raise
-
+        
+        # Separate numeric and categorical
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        categorical_cols = df.select_dtypes(exclude=[np.number]).columns
+        
+        # Numeric missing values
+        numeric_missing = [col for col in numeric_cols if df[col].isnull().any()]
+        if numeric_missing:
+            numeric_strategy = self.config['numeric']['strategy']
+            
+            if fit:
+                # Compute and cache statistics on train
+                if numeric_strategy == 'mean':
+                    self.impute_values = {col: df[col].mean() for col in numeric_missing}
+                elif numeric_strategy == 'median':
+                    self.impute_values = {col: df[col].median() for col in numeric_missing}
+            
+            # Apply imputation
+            for col in numeric_missing:
+                if col in self.impute_values:
+                    df[col].fillna(self.impute_values[col], inplace=True)
+                    self.logger.debug(f'Imputed {col} with {numeric_strategy}')
+        
+        # Categorical missing values
+        categorical_missing = [col for col in categorical_cols if df[col].isnull().any()]
+        if categorical_missing:
+            categorical_strategy = self.config['categorical']['strategy']
+            
+            if fit:
+                # Compute and cache mode on train
+                if categorical_strategy == 'mode':
+                    self.impute_values_cat = {
+                        col: df[col].mode()[0] if len(df[col].mode()) > 0 else 'Unknown'
+                        for col in categorical_missing
+                    }
+            
+            # Apply imputation
+            for col in categorical_missing:
+                if col in self.impute_values_cat:
+                    df[col].fillna(self.impute_values_cat[col], inplace=True)
+                    self.logger.debug(f'Imputed {col} with mode')
+        
+        return df
 

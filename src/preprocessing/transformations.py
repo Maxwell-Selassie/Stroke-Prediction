@@ -43,7 +43,9 @@ class FeatureTransformer:
                     continue
 
                 df[f'{col}_log'] = np.log1p(df[col])
-                df.drop(columns=[col], inplace=True)
+                if self.config.get('drop_original', False):
+                    df.drop(columns=[col], inplace=True)
+                    
                 self.logger.debug(f'Log transformed {col}')
             
             self.logger.info('Feature transformations completed')

@@ -41,7 +41,7 @@ class DuplicateHandler:
                 duplicates_count = df.duplicated().sum()
                 self.logger.info(f'Exact duplicates found: {duplicates_count}')
 
-                if duplicates_count.sum() > 0:
+                if duplicates_count > 0:
                     df = df.drop_duplicates()
                     self.logger.info(f'Duplicated removed - After: {len(df)}')
                 else:

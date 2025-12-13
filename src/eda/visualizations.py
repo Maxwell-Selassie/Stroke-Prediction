@@ -1,244 +1,378 @@
+"""
+Visualization Module - Generate EDA plots
+FIXED: Typos, better error handling, improved plot quality
+"""
+
 import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from pathlib import Path
-import logging 
+from typing import Optional, Dict
+import logging
+
 from utils import setup_logger, ensure_directory
+from utils.loggerMixin import LoggerMixin  
 
-class Visualizations:
-    def __init__(self, config):
+
+class Visualizations(LoggerMixin):  
+    """Generate comprehensive EDA visualizations."""
+    
+    def __init__(self, config: Dict):
+        """
+        Initialize Visualizations.
+        
+        Args:
+            config: Configuration dictionary
+        """
         self.config = config
-        self.logger = self._setup_logging()
-        self.figsize_univariate = self.config['visualization']['figure_size_univariate']
-        self.figsize_multivariate = self.config['visualization']['figure_size_multivariate']
+        self.logger = self.setup_class_logger('visualizations', config)  # ← CHANGED
+        
+        # Plot settings
+        self.figsize_univariate = tuple(self.config['visualization']['figure_size_univariate'])
+        self.figsize_multivariate = tuple(self.config['visualization']['figure_size_multivariate'])
         self.save_plots = self.config['visualization']['save_plots']
-        self.output_dir = self.config['output']['plots_dir']
-
-    def _setup_logging(self):
-        '''setup logging system'''
+        self.output_dir = Path(self.config['output']['plots_dir'])
+        
+        # Ensure output directory exists
+        ensure_directory(self.output_dir)
+        
+        # Setup plot style
+        self.setup_plot_style()
+    
+    def setup_plot_style(self) -> None:
+        """Configure matplotlib and seaborn plot styling."""
+        style = self.config['visualization'].get('style', 'seaborn-v0_8-darkgrid')
+        context = self.config['visualization'].get('context', 'notebook')
+        
         try:
-            log_config = self.config.get('logging',{})
-            log_dir = Path(log_config.get('log_dir','logs/'))
-
-            ensure_directory(log_dir)
-
-            logger = setup_logger(
-                name='data_overview',
-                log_dir=log_dir,
-                log_level=log_config.get('log_level', 'INFO'),
-                max_bytes=log_config.get('max_bytes', 10485760),
-                backup_count=log_config.get('backup_count', 7)
-            )
-            return logger 
-        except Exception as e:
-            print(f'Error setting up logging system: {e}')
-
-    def setup_plot_style(self):
-        STYLE = self.config['visualization']['style']
-        CONTEXT = self.config['visualization']['context']
-        try:
-            plt.style.use(STYLE)
-        except:
+            plt.style.use(style)
+            self.logger.debug(f'Using plot style: {style}')
+        except OSError:
             plt.style.use('default')
-        sns.set_context(CONTEXT)
-
-    def plot_numeric_distributions(self,df):
-        '''Plot distributions for numeric columns'''
+            self.logger.warning(f'Style {style} not found, using default')
+        
+        sns.set_context(context)
+    
+    def plot_numeric_distributions(self, df: pd.DataFrame) -> None:
+        """
+        Plot distributions for numeric columns.
+        
+        Args:
+            df: Input DataFrame
+        """
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        
+        if not numeric_cols:
+            self.logger.warning('No numeric columns to plot')
+            return
+        
         n_cols = len(numeric_cols)
-        n_rows = (n_cols + 2) // 3
-
-        self.logger.info(f'Plotting distributions for {len(numeric_cols)} numeric columns')
-
+        n_rows = (n_cols + 2) // 3  # Ceiling division
+        
+        self.logger.info(f'Plotting distributions for {n_cols} numeric columns...')
+        
         fig, axes = plt.subplots(nrows=n_rows, ncols=3, figsize=self.figsize_multivariate)
         axes = axes.flatten() if n_cols > 1 else [axes]
-
-        kde = self.config['visualization']['histogram'].get('kde',True)
-        alpha = self.config['visualization']['histogram'].get('alpha',0.7)
-
+        
+        kde = self.config['visualization']['histogram'].get('kde', True)
+        alpha = self.config['visualization']['histogram'].get('alpha', 0.7)
+        
         for idx, col in enumerate(numeric_cols):
             try:
                 sns.histplot(
-                    data=df, x=col, kde=kde,
-                    ax= axes[idx], color='purple',
+                    data=df,
+                    x=col,
+                    kde=kde,
+                    ax=axes[idx],
+                    color='purple',
                     alpha=alpha
                 )
-                axes[idx].set_title(f'Distibution of {col}', fontweight='bold')
+                axes[idx].set_title(f'Distribution of {col}', fontweight='bold')
                 axes[idx].set_ylabel('Frequency')
                 axes[idx].grid(True, alpha=0.3)
             except Exception as e:
-                self.logger.error(f'Error plotting {col}:{e}')
-
-        # hide empty subplots
+                self.logger.error(f'Error plotting {col}: {e}')
+                axes[idx].text(0.5, 0.5, f'Error: {str(e)[:50]}', 
+                             ha='center', va='center', transform=axes[idx].transAxes)
+        
+        # Hide empty subplots
         for idx in range(n_cols, len(axes)):
             axes[idx].set_visible(False)
-
+        
         plt.tight_layout()
-        DPI = self.config['output'].get('plot_dpi', 300)
-        output_file = Path(f'{self.output_dir}/numeric_distributions.png')
+        
         if self.save_plots:
-            plt.savefig(output_file, dpi=DPI,bbox_inches='tight')
+            output_file = self.output_dir / 'numeric_distributions.png'
+            dpi = self.config['output'].get('plot_dpi', 300)
+            plt.savefig(output_file, dpi=dpi, bbox_inches='tight')
             plt.close(fig)
-
-        self.logger.info(f'Saved: {output_file}')
-
-
-    def plot_categorical_distributions(self, df):
-        '''Plot count plots for categorical columns'''
-
+            self.logger.info(f'✓ Saved: {output_file}')
+        else:
+            plt.show()
+    
+    def plot_categorical_distributions(self, df: pd.DataFrame) -> None:
+        """
+        Plot count plots for categorical columns.
+        
+        Args:
+            df: Input DataFrame
+        """
         categorical_cols = df.select_dtypes(exclude=[np.number]).columns.tolist()
+        
+        if not categorical_cols:
+            self.logger.warning('No categorical columns to plot')
+            return
+        
         n_cols = len(categorical_cols)
         n_rows = (n_cols + 2) // 3
-
-        self.logger.info(f'Plotting frequencies for {len(categorical_cols)} categorical columns')
+        
+        self.logger.info(f'Plotting frequencies for {n_cols} categorical columns...')
+        
         fig, axes = plt.subplots(n_rows, 3, figsize=self.figsize_multivariate)
         axes = axes.flatten() if n_cols > 1 else [axes]
-
+        
         for idx, col in enumerate(categorical_cols):
             try:
-                ax = sns.countplot(data=df, x=col, ax=axes[idx], color='green', width=0.4)
-
-                # add label values
+                ax = sns.countplot(data=df, x=col, ax=axes[idx], color='green')
+                
+                # Add value labels
                 for container in ax.containers:
                     ax.bar_label(container, label_type='edge')
-
+                
                 ax.set_title(f'{col}', fontweight='bold')
                 ax.set_ylabel('Frequency')
                 ax.grid(True, alpha=0.3, axis='y')
                 ax.tick_params(axis='x', rotation=45)
-
             except Exception as e:
-                self.logger.error(f'Error plotting {col}:{e}')
-
-        # hide empty subplots
+                self.logger.error(f'Error plotting {col}: {e}')
+        
+        # Hide empty subplots
         for idx in range(n_cols, len(axes)):
             axes[idx].set_visible(False)
-
+        
         plt.tight_layout()
-        output_file = Path(f'{self.output_dir}/categorical_distributions.png')
-        DPI = self.config['output'].get('plot_dpi', 300)
-
+        
         if self.save_plots:
-            plt.savefig(output_file, dpi=DPI,bbox_inches='tight')
+            output_file = self.output_dir / 'categorical_distributions.png'
+            dpi = self.config['output'].get('plot_dpi', 300)
+            plt.savefig(output_file, dpi=dpi, bbox_inches='tight')
             plt.close(fig)
-
-        self.logger.info(f'Saved: {output_file}')
-
-    def plot_boxplots(self, df):
-        '''Plot boxplots for outlier detection'''
-
+            self.logger.info(f'✓ Saved: {output_file}')
+        else:
+            plt.show()
+    
+    def plot_boxplots(self, df: pd.DataFrame) -> None:
+        """
+        Plot boxplots for outlier detection.
+        
+        Args:
+            df: Input DataFrame
+        """
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        
+        if not numeric_cols:
+            self.logger.warning('No numeric columns for boxplots')
+            return
+        
         n_cols = len(numeric_cols)
         n_rows = (n_cols + 2) // 3
-
-        self.logger.info(f'Plotting boxplots for {len(numeric_cols)} numerical columns')
+        
+        self.logger.info(f'Plotting boxplots for {n_cols} numerical columns...')
+        
         fig, axes = plt.subplots(n_rows, 3, figsize=self.figsize_multivariate)
         axes = axes.flatten() if n_cols > 1 else [axes]
-
+        
         for idx, col in enumerate(numeric_cols):
             try:
                 sns.boxplot(
-                    data=df, y=col, ax=axes[idx], color='gold',linewidth=2, linecolor='blue'
+                    data=df,
+                    y=col,
+                    ax=axes[idx],
+                    color='gold',
+                    linewidth=2
                 )
-
                 axes[idx].set_title(f'Boxplot - {col}', fontweight='bold')
                 axes[idx].grid(True, alpha=0.3)
-
             except Exception as e:
-                self.logger.error(f'Error plotting {col}:{e}')
-
-        # hide empty subplots
+                self.logger.error(f'Error plotting {col}: {e}')
+        
+        # Hide empty subplots
         for idx in range(n_cols, len(axes)):
             axes[idx].set_visible(False)
-
+        
         plt.tight_layout()
-        output_file = Path(f'{self.output_dir}/boxplots_outliers.png')
-        DPI = self.config['output'].get('plot_dpi', 300)
-
+        
         if self.save_plots:
-            plt.savefig(output_file, dpi=DPI,bbox_inches='tight')
+            output_file = self.output_dir / 'boxplots_outliers.png'
+            dpi = self.config['output'].get('plot_dpi', 300)
+            plt.savefig(output_file, dpi=dpi, bbox_inches='tight')
             plt.close(fig)
-
-    def correlation_heatmap(self, df):
-        '''Plot correlation heatmap'''
-
-        method = self.config['visualization']['heatmap'].get('method','spearman')
-
-        self.logger.info(f'Plotting correlation heatmap ({method} method)')
-
+            self.logger.info(f'✓ Saved: {output_file}')
+        else:
+            plt.show()
+    
+    def correlation_heatmap(self, df: pd.DataFrame) -> None:
+        """
+        Plot correlation heatmap.
+        
+        Args:
+            df: Input DataFrame
+        """
+        method = self.config['visualization']['heatmap'].get('method', 'spearman')
+        self.logger.info(f'Plotting correlation heatmap ({method} method)...')
+    
         try:
             corr = df.corr(numeric_only=True, method=method)
-
-            fig, ax = plt.subplot(figize=self.figsize_univariate)
+            
+            # FIXED: subplot -> subplots, figize -> figsize
+            fig, ax = plt.subplots(figsize=self.figsize_univariate)
+            
             sns.heatmap(
-                data=corr, annot=True, fmt='.2f', cmap='Blues',ax=ax
+                data=corr,
+                annot=True,
+                fmt='.2f',
+                cmap='Blues',
+                ax=ax,
+                cbar_kws={'label': 'Correlation'}
             )
-            ax.set_tile(f'Correlation Heatmap ({method.capitalize()})')
-
-
+            ax.set_title(f'Correlation Heatmap ({method.capitalize()})', fontweight='bold')
+            
             plt.tight_layout()
-            output_file = Path(f'{self.output_dir}/correlation_heatmap_{method}.png')
-            DPI = self.config['output'].get('plot_dpi', 300)
-
+            
             if self.save_plots:
-                plt.savefig(output_file, dpi=DPI,bbox_inches='tight')
+                output_file = self.output_dir / f'correlation_heatmap_{method}.png'
+                dpi = self.config['output'].get('plot_dpi', 300)
+                plt.savefig(output_file, dpi=dpi, bbox_inches='tight')
                 plt.close(fig)
-
-                self.logger.error(f'Saved : {output_file}')
-
+                self.logger.info(f'✓ Saved: {output_file}')  
+            else:
+                plt.show()
+        
         except Exception as e:
-            self.logger.error(f'Error creating correlation heatmap: {e}')
+            self.logger.error(f'Error creating correlation heatmap: {e}', exc_info=True)
 
-    def plot_target_distribution(self, df):
-        '''Plot target variable distribution'''
-
-        target_column = self.config['data']['target_column'] 
-
-        self.logger.info(f'Plotting target distribution for {target_column}')
-
+    def plot_target_distribution(self, df: pd.DataFrame) -> None:
+        """
+        Plot target variable distribution.
+        
+        Args:
+            df: Input DataFrame
+        """
+        target_column = self.config['data']['target_column']
+        
+        if target_column not in df.columns:
+            self.logger.error(f'Target column {target_column} not found')
+            return
+        
+        self.logger.info(f'Plotting target distribution for {target_column}...')
+        
         try:
             fig, ax = plt.subplots(figsize=self.figsize_univariate)
-
-            ax = sns.countplot(
-                data=df, 
+            
+            sns.countplot(
+                data=df,
                 x=target_column,
-                color='blue',
-                width=0.5
+                ax=ax,
+                color='blue'
             )
-
-            # add labels
+            
+            # Add labels
             for container in ax.containers:
                 ax.bar_label(container, label_type='edge')
-
-            ax.set_title(f'Target variable distribution: {target_column}',
-                        fontweight='bold', fontsize=13)
+            
+            ax.set_title(
+                f'Target Variable Distribution: {target_column}',
+                fontweight='bold',
+                fontsize=13
+            )
             ax.set_ylabel('Count', fontsize=12)
             ax.grid(True, alpha=0.3, axis='y')
-
+            
+            # NEW: Add class balance info
+            class_counts = df[target_column].value_counts()
+            class_pcts = df[target_column].value_counts(normalize=True) * 100
+            
+            info_text = '\n'.join([
+                f'{cls}: {count} ({class_pcts[cls]:.1f}%)'
+                for cls, count in class_counts.items()
+            ])
+            ax.text(
+                0.98, 0.98, info_text,
+                transform=ax.transAxes,
+                verticalalignment='top',
+                horizontalalignment='right',
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5),
+                fontsize=10
+            )
+            
             plt.tight_layout()
-            output_file = Path(f'{self.output_dir}/target_distribution.png')
-            DPI = self.config['output'].get('plot_dpi', 300)
-
+            
             if self.save_plots:
-                plt.savefig(output_file, dpi=DPI,bbox_inches='tight')
+                output_file = self.output_dir / 'target_distribution.png'
+                dpi = self.config['output'].get('plot_dpi', 300)
+                plt.savefig(output_file, dpi=dpi, bbox_inches='tight')
                 plt.close(fig)
-
-                self.logger.error(f'Saved : {output_file}')
-
+                self.logger.info(f'✓ Saved: {output_file}')  # FIXED
+            else:
+                plt.show()
+        
         except Exception as e:
-            self.logger.error(f'Error plotting target distribution: {e}')
+            self.logger.error(f'Error plotting target distribution: {e}', exc_info=True)
 
-
-    def run_visualizations(self, df):
-        '''Run all visualizations'''
-        visuals = {}
-        self.logger.info(f'Running visualizations....')
-        visuals['numeric_distributions'] = self.plot_numeric_distributions(df)
-        visuals['categorical_distributions'] = self.plot_categorical_distributions(df)
-        visuals['heatmap'] = self.correlation_heatmap(df)
-        visuals['boxplots'] = self.plot_boxplots(df)
-        visuals['target_distributions'] = self.plot_target_distribution(df)
-
-        return visuals
-    
+    def run_visualizations(self, df: pd.DataFrame) -> Dict[str, str]:
+        """
+        Run all visualizations.
+        
+        Args:
+            df: Input DataFrame
+            
+        Returns:
+            Dictionary with status of each visualization
+        """
+        results = {}
+        
+        self.logger.info('='*60)
+        self.logger.info('RUNNING VISUALIZATIONS')
+        self.logger.info('='*60)
+        
+        try:
+            self.plot_numeric_distributions(df)
+            results['numeric_distributions'] = 'success'
+        except Exception as e:
+            self.logger.error(f'Numeric distributions failed: {e}')
+            results['numeric_distributions'] = f'failed: {e}'
+        
+        try:
+            self.plot_categorical_distributions(df)
+            results['categorical_distributions'] = 'success'
+        except Exception as e:
+            self.logger.error(f'Categorical distributions failed: {e}')
+            results['categorical_distributions'] = f'failed: {e}'
+        
+        try:
+            self.correlation_heatmap(df)
+            results['heatmap'] = 'success'
+        except Exception as e:
+            self.logger.error(f'Heatmap failed: {e}')
+            results['heatmap'] = f'failed: {e}'
+        
+        try:
+            self.plot_boxplots(df)
+            results['boxplots'] = 'success'
+        except Exception as e:
+            self.logger.error(f'Boxplots failed: {e}')
+            results['boxplots'] = f'failed: {e}'
+        
+        try:
+            self.plot_target_distribution(df)
+            results['target_distribution'] = 'success'
+        except Exception as e:
+            self.logger.error(f'Target distribution failed: {e}')
+            results['target_distribution'] = f'failed: {e}'
+        
+        self.logger.info('='*60)
+        self.logger.info('✓ VISUALIZATIONS COMPLETED')
+        self.logger.info('='*60)
+        
+        return results
