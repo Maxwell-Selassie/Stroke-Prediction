@@ -85,6 +85,7 @@ class PreprocessingPipeline:
             self.logger.info(f'Pre-split data cleaning...')
             df = self.duplicate_handler.handle_duplicates(df)
             df = self.missing_handler.handle_missing(df)
+            df = self.feature_encoder.encode_features(df)
             df = self.drop_columns(df)
 
             # stage 2: split data
@@ -94,21 +95,21 @@ class PreprocessingPipeline:
             # stage 3: fit transformers on training set
             self.logger.info(f'Fitting transformers on training data...')
             train_set = self.outlier_handler.handle_outliers(train_set, fit=True)
-            train_set = self.feature_encoder.encode_features(train_set, fit=True)
+            # train_set = self.feature_encoder.encode_features(train_set, fit=True)
             train_set = self.feature_transformer.transform_features(train_set, fit=True)
             
 
             # stage 4: transform dev set
             self.logger.info(f'Transforming dev set')
             dev_set = self.outlier_handler.handle_outliers(dev_set, fit=False)
-            dev_set = self.feature_encoder.encode_features(dev_set, fit=False)
+            # dev_set = self.feature_encoder.encode_features(dev_set, fit=False)
             dev_set = self.feature_transformer.transform_features(dev_set, fit=False)
 
 
             # stage 5: transform test set
             self.logger.info(f'Transforming test set')
             test_set = self.outlier_handler.handle_outliers(test_set, fit=False)
-            test_set = self.feature_encoder.encode_features(test_set, fit=False)
+            # test_set = self.feature_encoder.encode_features(test_set, fit=False)
             test_set = self.feature_transformer.transform_features(test_set, fit=False)
 
 
