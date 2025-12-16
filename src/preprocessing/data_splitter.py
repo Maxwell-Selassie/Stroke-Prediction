@@ -17,8 +17,8 @@ class DataSplitter(LoggerMixin):
     """
     Split data before transformations to prevent leakage.
     
-    ✅ FIXED: Split logic (was splitting full df twice)
-    ✅ UPDATED: Type hints, validation, documentation
+    FIXED: Split logic (was splitting full df twice)
+    UPDATED: Type hints, validation, documentation
     """
     
     def __init__(self, config: dict):

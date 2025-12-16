@@ -1,56 +1,70 @@
-
 import pandas as pd
 import numpy as np
-from utils import setup_logger, ensure_directory
+from typing import List
 from pathlib import Path
 
-class FeatureTransformer:
-    '''Apply mathematical transformations'''
+from utils.loggerMixin import LoggerMixin
 
-    def __init__(self, config):
+
+# UPDATED: Inherit from LoggerMixin
+class FeatureTransformer(LoggerMixin):
+    """
+    Apply mathematical transformations (log, sqrt, etc.).
+    
+    ✅ UPDATED: Configurable original column dropping
+    """
+    
+    def __init__(self, config: dict):
         self.config = config['transformations']
-        self.logger = self._setup_logging()
-
-    def _setup_logging(self):
-        '''setup logging system'''
-        try:
-            log_config = self.config.get('logging',{})
-            log_dir = Path(log_config.get('log_dir','logs/'))
-
-            ensure_directory(log_dir)
-
-            logger = setup_logger(
-                name='transformations',
-                log_dir=log_dir,
-                log_level=log_config.get('log_level', 'INFO'),
-                max_bytes=log_config.get('max_bytes', 10485760),
-                backup_count=log_config.get('backup_count', 7)
-            )
-            return logger 
-        except Exception as e:
-            print(f'Error setting up logging system: {e}')
+        self.logger = self.setup_class_logger('feature_transformer', config)
+    
+    def transform_features(self, df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
+        """
+        Apply log transformations to reduce skewness.
         
-    def transform_features(self, df, fit=True):
-        '''Apply log transformations to reduce skewness'''
+        ✅ UPDATED: Option to keep or drop original columns
+        
+        Args:
+            df: Input DataFrame
+            fit: Unused (kept for interface consistency)
+        
+        Returns:
+            DataFrame with transformed features
+        
+        Example:
+            >>> transformer = FeatureTransformer(config)
+            >>> df = transformer.transform_features(df)
+        """
         try:
             self.logger.info('Applying feature transformations...')
-
-            log_cols = self.config['log_columns']
-
+            
+            log_cols = self.config.get('log_columns', [])
+            #  NEW: Configurable drop behavior
+            drop_original = self.config.get('drop_original', True)
+            
+            if not log_cols:
+                self.logger.info('No columns specified for log transformation')
+                return df
+            
             for col in log_cols:
                 if col not in df.columns:
                     self.logger.warning(f'Column {col} not found for log transformation')
                     continue
-
-                df[f'{col}_log'] = np.log1p(df[col])
-                if self.config.get('drop_original', False):
-                    df.drop(columns=[col], inplace=True)
-                    
-                self.logger.debug(f'Log transformed {col}')
+                
+                # Apply log1p transformation
+                new_col_name = f'{col}_log'
+                df[new_col_name] = np.log1p(df[col])
+                
+                # UPDATED: Optionally drop original
+                if drop_original:
+                    df = df.drop(columns=[col])
+                    self.logger.debug(f'Log transformed {col} → {new_col_name} (original dropped)')
+                else:
+                    self.logger.debug(f'Log transformed {col} → {new_col_name} (original kept)')
             
             self.logger.info('Feature transformations completed')
             return df
         
         except Exception as e:
-            self.logger.error(f'Error in feature transformation: {e}')
+            self.logger.error(f'Error in feature transformation: {e}', exc_info=True)
             raise

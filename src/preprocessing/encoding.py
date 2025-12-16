@@ -1,70 +1,142 @@
-
 import pandas as pd
 import numpy as np
-from utils import setup_logger, ensure_directory
+from typing import Dict, List, Set
 from pathlib import Path
 import warnings
 warnings.filterwarnings('ignore')
 
-class FeatureEncoder:
-    '''Encode categorical features'''
-    def __init__(self, config):
+from utils.loggerMixin import LoggerMixin
+
+
+# UPDATED: Inherit from LoggerMixin
+class FeatureEncoder(LoggerMixin):
+    """
+    Encode categorical features with proper fit/transform pattern.
+
+    """
+    
+    def __init__(self, config: dict):
         self.config = config['encoding']
-        self.logger = self._setup_logging()
-        self.encoding_cache = {}
-
-    def _setup_logging(self):
-        '''setup logging system'''
+        self.logger = self.setup_class_logger('feature_encoder', config)
+        
+        self.seen_categories = {}
+        self.encoded_columns = []
+    
+    def encode_features(self, df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
+        """
+        Apply one-hot encoding with proper fit/transform.
+        
+        ✅ UPDATED: Handles unseen categories gracefully
+        
+        Args:
+            df: Input DataFrame
+            fit: If True, learn categories from this data
+        
+        Returns:
+            DataFrame with encoded features
+        
+        Example:
+            >>> encoder = FeatureEncoder(config)
+            >>> train = encoder.encode_features(train_df, fit=True)
+            >>> dev = encoder.encode_features(dev_df, fit=False)
+        """
         try:
-            log_config = self.config.get('logging',{})
-            log_dir = Path(log_config.get('log_dir','logs/'))
-
-            ensure_directory(log_dir)
-
-            logger = setup_logger(
-                name='encoding',
-                log_dir=log_dir,
-                log_level=log_config.get('log_level', 'INFO'),
-                max_bytes=log_config.get('max_bytes', 10485760),
-                backup_count=log_config.get('backup_count', 7)
-            )
-            return logger 
-        except Exception as e:
-            print(f'Error setting up logging system: {e}')
-
-    def encode_features(self, df, fit=True):
-        try:
-            self.logger.info(f'Encoding categorical features...')
-
-            # one-hot encoding
+            self.logger.info('Encoding categorical features...')
+            
+            # One-hot encoding
             df = self._one_hot_encode(df, fit)
-
-            self.logger.info(f'Feature encoding completed')
+            
+            self.logger.info('Feature encoding completed')
             return df
         
         except Exception as e:
-            self.logger.error(f'Error encoding features: {e}')
+            self.logger.error(f'Error encoding features: {e}', exc_info=True)
             raise
-
-    def _one_hot_encode(self, df, fit=True):
-        '''one-hot encode low cardinality features'''
+    
+    def _one_hot_encode(self, df: pd.DataFrame, fit: bool) -> pd.DataFrame:
+        """
+        UPDATED: One-hot encode with unseen category handling.
+        
+        Args:
+            df: Input DataFrame
+            fit: Whether to learn categories
+        
+        Returns:
+            DataFrame with one-hot encoded features
+        """
         try:
-            if not self.config['one_hot_columns']:
-                self.logger.warning(f'One Hot Encoding disabled')
+            one_hot_config = self.config.get('one_hot_columns', True)
+            
+            # If False/empty, skip encoding
+            if not one_hot_config:
+                self.logger.warning('One-hot encoding disabled')
                 return df
-
+            
+            # Get categorical columns
             categorical_cols = df.select_dtypes(exclude=[np.number]).columns.tolist()
-            for col in categorical_cols:
+            
+            if not categorical_cols:
+                self.logger.info('No categorical columns found')
+                return df
+            
+            if fit:
+                # Learn categories from training data
+                self.logger.info(f'Learning categories from {len(categorical_cols)} columns')
+                
+                for col in categorical_cols:
+                    self.seen_categories[col] = set(df[col].dropna().unique())
                     
-                dummies = pd.get_dummies(data=df[col], prefix=col, drop_first=True, dtype=int)
-                df = pd.concat([df, dummies], axis=1)
-                df = df.drop(columns=[col])
-
-                self.logger.debug(f'On-hot encoded {col} into {len(dummies.columns)} features')
-
+                    # One-hot encode
+                    dummies = pd.get_dummies(df[col], prefix=col, drop_first=True, dtype=int)
+                    df = pd.concat([df, dummies], axis=1)
+                    df = df.drop(columns=[col])
+                    
+                    # Track encoded column names
+                    self.encoded_columns.extend(dummies.columns.tolist())
+                    
+                    self.logger.debug(
+                        f'One-hot encoded {col}: {len(self.seen_categories[col])} categories '
+                        f'→ {len(dummies.columns)} features'
+                    )
+            
+            else:
+                # Apply learned categories to dev/test
+                for col in categorical_cols:
+                    if col not in self.seen_categories:
+                        self.logger.warning(
+                            f'Column {col} was not seen during training, skipping'
+                        )
+                        continue
+                    
+                    # Check for unseen categories
+                    current_categories = set(df[col].dropna().unique())
+                    unseen = current_categories - self.seen_categories[col]
+                    
+                    if unseen:
+                        self.logger.warning(
+                            f'Unseen categories in {col}: {unseen}. '
+                            f'Setting to NaN (will create all-zero encoding)'
+                        )
+                        # Replace unseen categories with NaN
+                        df.loc[df[col].isin(unseen), col] = np.nan
+                    
+                    # One-hot encode
+                    dummies = pd.get_dummies(df[col], prefix=col, drop_first=True, dtype=int)
+                    
+                    # Ensure same columns as training
+                    for encoded_col in self.encoded_columns:
+                        if encoded_col.startswith(f'{col}_') and encoded_col not in dummies.columns:
+                            dummies[encoded_col] = 0
+                    
+                    # Keep only columns from training
+                    training_cols = [c for c in self.encoded_columns if c.startswith(f'{col}_')]
+                    dummies = dummies[training_cols]
+                    
+                    df = pd.concat([df, dummies], axis=1)
+                    df = df.drop(columns=[col])
+            
             return df
         
         except Exception as e:
-            self.logger.error(f'Error in one-hot encoding: {e}')
+            self.logger.error(f'Error in one-hot encoding: {e}', exc_info=True)
             raise
-        

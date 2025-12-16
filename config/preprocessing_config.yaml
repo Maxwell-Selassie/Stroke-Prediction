@@ -39,6 +39,7 @@ encoding:
 
 transformations:
   log_columns: ['bmi','age','avg_glucose_level']
+  drop_original: false
 
 output:
   processed_dir: 'data/processed'

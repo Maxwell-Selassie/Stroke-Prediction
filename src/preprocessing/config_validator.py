@@ -62,9 +62,9 @@ class ConfigValidator:
     def _validate_required_keys(self, config: Dict) -> None:
         """Validate required top-level configuration keys exist"""
         required_keys = [
-            'file_path', 'data_split', 'missing_values', 
+            'data', 'data_split', 'missing_values', 
             'duplicates', 'outliers', 'encoding', 
-            'transformations', 'output'
+            'transformations', 'output', 'logging', 'columns_to_drop'
         ]
         
         missing_keys = [key for key in required_keys if key not in config]
@@ -74,7 +74,7 @@ class ConfigValidator:
     
     def _validate_data_split_config(self, config: Dict) -> None:
         """Validate data split configuration"""
-        required = ['test_size', 'dev_size', 'random_state']
+        required = ['test_size', 'dev_size', 'random_state','stratify_column']
         
         for key in required:
             if key not in config:

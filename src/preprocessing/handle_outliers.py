@@ -1,8 +1,3 @@
-"""
-Outlier Handler - Flag outliers using IQR method
-ENHANCED: Better logging, configurable multiplier
-"""
-
 import pandas as pd
 import numpy as np
 from typing import Dict
@@ -10,27 +5,18 @@ from pathlib import Path
 import warnings
 warnings.filterwarnings('ignore')
 
-from utils import setup_logger, ensure_directory
 from utils.loggerMixin import LoggerMixin
 
 
+# UPDATED: Inherit from LoggerMixin
 class OutlierHandler(LoggerMixin):
     """
-    Flag outliers without removing them.
-    
-    Uses IQR method: outliers are values outside [Q1 - k*IQR, Q3 + k*IQR]
-    where k is typically 1.5
+    Flag outliers without removing them (using IQR method).
+
     """
     
     def __init__(self, config: dict):
-        """
-        Initialize OutlierHandler.
-        
-        Args:
-            config: Full configuration dictionary
-        """
         self.config = config['outliers']
-        self.full_config = config
         self.logger = self.setup_class_logger('outlier_handler', config)
         self.outlier_bounds = {}
     
@@ -38,12 +24,19 @@ class OutlierHandler(LoggerMixin):
         """
         Flag outliers using IQR method.
         
+        Computes bounds on training set, applies to all sets.
+        
         Args:
             df: Input DataFrame
-            fit: If True, compute bounds; if False, use cached bounds
-            
+            fit: If True, compute outlier bounds from this data
+        
         Returns:
             DataFrame with 'is_outlier' column added
+        
+        Example:
+            >>> handler = OutlierHandler(config)
+            >>> train = handler.handle_outliers(train_df, fit=True)
+            >>> dev = handler.handle_outliers(dev_df, fit=False)
         """
         try:
             self.logger.info('Processing outliers...')
@@ -56,15 +49,15 @@ class OutlierHandler(LoggerMixin):
                 return df
             
             if fit:
-                self.logger.info(f'Computing outlier bounds for {len(cols_to_flag)} columns...')
+                self.logger.info(f'Computing outlier bounds from training data...')
                 self.outlier_bounds = self._compute_bounds(df, cols_to_flag)
             
             df = self._flag_outliers(df, cols_to_flag)
             
             outlier_count = (df['is_outlier'] == 1).sum()
-            outlier_pct = (outlier_count / len(df)) * 100
             self.logger.info(
-                f'Rows flagged as outliers: {outlier_count:,} ({outlier_pct:.2f}%)'
+                f'Rows flagged as outliers: {outlier_count} '
+                f'({outlier_count/len(df)*100:.2f}%)'
             )
             
             return df
@@ -79,17 +72,17 @@ class OutlierHandler(LoggerMixin):
         
         Args:
             df: Input DataFrame
-            cols_to_flag: List of columns to compute bounds for
-            
+            cols_to_flag: List of column names
+        
         Returns:
-            Dictionary of {column: {'lower': float, 'upper': float}}
+            Dictionary mapping column names to {'lower': float, 'upper': float}
         """
         bounds = {}
         multiplier = self.config.get('multiplier', 1.5)
         
         for col in cols_to_flag:
             if col not in df.columns:
-                self.logger.warning(f'Column {col} not found for outlier detection')
+                self.logger.warning(f'Column {col} not found, skipping')
                 continue
             
             Q1 = df[col].quantile(0.25)
@@ -99,29 +92,24 @@ class OutlierHandler(LoggerMixin):
             lower_bound = Q1 - multiplier * IQR
             upper_bound = Q3 + multiplier * IQR
             
-            bounds[col] = {
-                'lower': lower_bound,
-                'upper': upper_bound,
-                'Q1': Q1,
-                'Q3': Q3,
-                'IQR': IQR
-            }
+            bounds[col] = {'lower': lower_bound, 'upper': upper_bound}
             
             self.logger.debug(
-                f'{col}: bounds=[{lower_bound:.2f}, {upper_bound:.2f}], IQR={IQR:.2f}'
+                f'{col}: bounds=({lower_bound:.2f}, {upper_bound:.2f}), '
+                f'IQR={IQR:.2f}'
             )
         
-        self.logger.info(f'✓ Computed bounds for {len(bounds)} columns')
+        self.logger.debug(f'Computed outlier bounds for {len(bounds)} columns')
         return bounds
     
     def _flag_outliers(self, df: pd.DataFrame, cols_to_flag: list) -> pd.DataFrame:
         """
-        Flag rows as outliers based on computed bounds.
+        Flag rows as outliers based on training bounds.
         
         Args:
             df: Input DataFrame
-            cols_to_flag: List of columns to check
-            
+            cols_to_flag: List of column names
+        
         Returns:
             DataFrame with 'is_outlier' column
         """
@@ -129,10 +117,10 @@ class OutlierHandler(LoggerMixin):
         
         for col in cols_to_flag:
             if col not in self.outlier_bounds:
-                self.logger.warning(f'No bounds cached for {col}')
                 continue
             
             if col not in df.columns:
+                self.logger.warning(f'Column {col} not in DataFrame, skipping')
                 continue
             
             lower = self.outlier_bounds[col]['lower']
@@ -140,10 +128,6 @@ class OutlierHandler(LoggerMixin):
             
             col_outliers = (df[col] < lower) | (df[col] > upper)
             is_outlier = is_outlier | col_outliers.astype(int)
-            
-            n_outliers = col_outliers.sum()
-            if n_outliers > 0:
-                self.logger.debug(f'{col}: {n_outliers} outliers detected')
         
         df['is_outlier'] = is_outlier
         return df
