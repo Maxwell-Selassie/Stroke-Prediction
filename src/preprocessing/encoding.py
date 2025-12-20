@@ -5,20 +5,23 @@ from pathlib import Path
 import warnings
 warnings.filterwarnings('ignore')
 
+
 from utils.loggerMixin import LoggerMixin
 
-
-# UPDATED: Inherit from LoggerMixin
 class FeatureEncoder(LoggerMixin):
     """
     Encode categorical features with proper fit/transform pattern.
-
+    
+    ✅ UPDATED: Handles unseen categories in dev/test
+    ✅ UPDATED: Proper fit/transform caching
     """
     
     def __init__(self, config: dict):
         self.config = config['encoding']
+
         self.logger = self.setup_class_logger('feature_encoder', config)
         
+
         self.seen_categories = {}
         self.encoded_columns = []
     
@@ -55,7 +58,7 @@ class FeatureEncoder(LoggerMixin):
     
     def _one_hot_encode(self, df: pd.DataFrame, fit: bool) -> pd.DataFrame:
         """
-        UPDATED: One-hot encode with unseen category handling.
+        ✨ UPDATED: One-hot encode with unseen category handling.
         
         Args:
             df: Input DataFrame

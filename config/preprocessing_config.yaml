@@ -2,6 +2,25 @@
 data:
   file_path: 'data/raw/healthcare-dataset-stroke-data.csv'
 
+expected_columns:
+  - 'id'
+  - 'gender'
+  - 'age'
+  - 'hypertension'
+  - 'heart_disease'
+  - 'ever_married'
+  - 'work_type'
+  - 'Residence_type'
+  - 'avg_glucose_level'
+  - 'bmi'
+  - 'smoking_status'
+  - 'stroke'
+
+value_ranges:
+  age: [0, 120]
+  bmi: [10, 70]
+  avg_glucose_level: [0, 500]
+  
 data_split:
   dev_size: 610
   test_size: 500

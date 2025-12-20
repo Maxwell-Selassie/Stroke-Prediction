@@ -3,6 +3,7 @@ import numpy as np
 from typing import List
 from pathlib import Path
 
+
 from utils.loggerMixin import LoggerMixin
 
 
@@ -16,6 +17,7 @@ class FeatureTransformer(LoggerMixin):
     
     def __init__(self, config: dict):
         self.config = config['transformations']
+
         self.logger = self.setup_class_logger('feature_transformer', config)
     
     def transform_features(self, df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
@@ -39,7 +41,7 @@ class FeatureTransformer(LoggerMixin):
             self.logger.info('Applying feature transformations...')
             
             log_cols = self.config.get('log_columns', [])
-            #  NEW: Configurable drop behavior
+            # ✨ NEW: Configurable drop behavior
             drop_original = self.config.get('drop_original', True)
             
             if not log_cols:
@@ -55,7 +57,7 @@ class FeatureTransformer(LoggerMixin):
                 new_col_name = f'{col}_log'
                 df[new_col_name] = np.log1p(df[col])
                 
-                # UPDATED: Optionally drop original
+                # ✅ UPDATED: Optionally drop original
                 if drop_original:
                     df = df.drop(columns=[col])
                     self.logger.debug(f'Log transformed {col} → {new_col_name} (original dropped)')
