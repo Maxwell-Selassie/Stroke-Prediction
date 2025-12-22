@@ -23,7 +23,7 @@ class MissingHandler(LoggerMixin):
     def __init__(self, config: dict):
         self.config = config['missing_values']
         # ✨ NEW: Use LoggerMixin
-        self.logger = self.setup_class_logger('missing_handler', config)
+        self.logger = self.setup_class_logger('missing_handler', config, 'logging')
         
         # ✨ NEW: Cache for imputation values
         self.impute_values_numeric = {}

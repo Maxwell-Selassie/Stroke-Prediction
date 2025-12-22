@@ -24,7 +24,7 @@ class DataSplitter(LoggerMixin):
     def __init__(self, config: dict):
         self.config = config['data_split']
 
-        self.logger = self.setup_class_logger('data_splitter', config)
+        self.logger = self.setup_class_logger('data_splitter', config, 'logging')
     
     def split_data(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """

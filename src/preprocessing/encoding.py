@@ -19,7 +19,7 @@ class FeatureEncoder(LoggerMixin):
     def __init__(self, config: dict):
         self.config = config['encoding']
 
-        self.logger = self.setup_class_logger('feature_encoder', config)
+        self.logger = self.setup_class_logger('feature_encoder', config, 'logging')
         
 
         self.seen_categories = {}

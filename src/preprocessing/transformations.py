@@ -18,7 +18,7 @@ class FeatureTransformer(LoggerMixin):
     def __init__(self, config: dict):
         self.config = config['transformations']
 
-        self.logger = self.setup_class_logger('feature_transformer', config)
+        self.logger = self.setup_class_logger('feature_transformer', config, 'logging')
     
     def transform_features(self, df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
         """

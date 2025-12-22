@@ -17,7 +17,7 @@ class OutlierHandler(LoggerMixin):
     
     def __init__(self, config: dict):
         self.config = config['outliers']
-        self.logger = self.setup_class_logger('outlier_handler', config)
+        self.logger = self.setup_class_logger('outlier_handler', config, 'logging')
         self.outlier_bounds = {}
     
     def handle_outliers(self, df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:

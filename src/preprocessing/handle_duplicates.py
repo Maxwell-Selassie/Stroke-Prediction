@@ -9,7 +9,7 @@ class DuplicateHandler(LoggerMixin):
 
     def __init__(self, config: dict):
         self.config = config['duplicates']
-        self.logger = self.setup_class_logger('duplicate_handler', config)
+        self.logger = self.setup_class_logger('duplicate_handler', config, 'logging')
 
     def handle_duplicates(self, df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
         """

@@ -1,4 +1,6 @@
 from .data_splitter import DataSplitter
+from .config_validator import ConfigValidator
+from .data_validator import DataValidator
 from .encoding import FeatureEncoder
 from .handle_duplicates import DuplicateHandler
 from .handle_missing import MissingHandler
@@ -10,6 +12,8 @@ __all__ = [
     'FeatureEncoder',
     'DuplicateHandler',
     'MissingHandler',
-    'HandleOutliers',
-    'FeatureTransformer'
+    'OutlierHandler',
+    'FeatureTransformer',
+    'ConfigValidator',
+    'DataValidator'
 ]
