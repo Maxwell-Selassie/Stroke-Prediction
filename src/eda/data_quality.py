@@ -32,7 +32,7 @@ class DataQuality(LoggerMixin):
             config: Configuration dictionary
         """
         self.config = config
-        self.logger = self.setup_class_logger('data_quality', config)  # ← CHANGED
+        self.logger = self.setup_class_logger('data_quality', config, 'logging')  
     
     def _check_for_missing_values(self, df: pd.DataFrame) -> pd.DataFrame:
         """

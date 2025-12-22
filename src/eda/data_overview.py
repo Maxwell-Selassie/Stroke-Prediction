@@ -36,7 +36,7 @@ class DataOverview(LoggerMixin):  # ← CHANGED: Now inherits from LoggerMixin
             config_path: Path to YAML configuration file
         """
         self.config = self._load_config(config_path)
-        self.logger = self.setup_class_logger('data_overview', self.config)
+        self.logger = self.setup_class_logger('data_overview', self.config, 'logging')
         self.df = None  
     
     def _load_config(self, config_path: Union[Path, str]) -> Dict:

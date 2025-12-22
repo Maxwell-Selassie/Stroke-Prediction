@@ -2,7 +2,7 @@ from .data_splitter import DataSplitter
 from .encoding import FeatureEncoder
 from .handle_duplicates import DuplicateHandler
 from .handle_missing import MissingHandler
-from .handle_outliers import HandleOutliers
+from .handle_outliers import OutlierHandler
 from .transformations import FeatureTransformer
 
 __all__ = [

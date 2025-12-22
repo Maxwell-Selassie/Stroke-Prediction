@@ -26,7 +26,7 @@ class Visualizations(LoggerMixin):
             config: Configuration dictionary
         """
         self.config = config
-        self.logger = self.setup_class_logger('visualizations', config)  # ← CHANGED
+        self.logger = self.setup_class_logger('visualizations', config, 'logging')  
         
         # Plot settings
         self.figsize_univariate = tuple(self.config['visualization']['figure_size_univariate'])
