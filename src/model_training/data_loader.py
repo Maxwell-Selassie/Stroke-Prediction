@@ -9,7 +9,10 @@ from pathlib import Path
 import logging
 
 logger = logging.getLogger(__name__)
+import sys
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from utils import read_csv
 
 class TrainingDataLoader:
     """
@@ -34,7 +37,6 @@ class TrainingDataLoader:
         self.y_train = None
         self.X_val = None
         self.y_val = None
-        
         self.feature_names = None
         self.n_features = None
     
@@ -49,12 +51,13 @@ class TrainingDataLoader:
         logger.info("LOADING TRAINING DATA")
         logger.info("="*80)
         
-        target_col = self.config.get('target_column', 'Loan_Status')
+        # target column
+        target_col = self.config.get('target_column', 'stroke')
         
         # Load train
         train_path = self.config.get('train_data')
         logger.info(f"Loading training data from: {train_path}")
-        df_train = pd.read_csv(train_path)
+        df_train = read_csv(train_path)
         
         if target_col not in df_train.columns:
             raise ValueError(f"Target column '{target_col}' not found in training data")
@@ -71,13 +74,14 @@ class TrainingDataLoader:
         # Load validation set
         val_path = self.config.get('val_data')
         logger.info(f"Loading test data from: {val_path}")
-        df_val = pd.read_csv(val_path)
+        df_val = read_csv(val_path)
         
         self.X_val = df_val.drop(columns=[target_col]).values
         self.y_val = df_val[target_col].values
         
         logger.info(f"  Test: X={self.X_val.shape}, y={self.y_val.shape}")
         logger.info(f"  Class distribution: {np.bincount(self.y_val.astype(int))}")
+
         
         # Validate shapes
         if self.X_train.shape[1] != self.X_val.shape[1]:
@@ -97,8 +101,24 @@ class TrainingDataLoader:
         return {
             'n_features': self.n_features,
             'feature_names': self.feature_names,
-            'train_size': len(self.X_train),
-            'test_size': len(self.X_val),
-            'train_class_dist': np.bincount(self.y_train.astype(int)).tolist(),
-            'test_class_dist': np.bincount(self.y_val.astype(int)).tolist()
+            # 'train_size': len(self.X_train),
+            # 'val_size': len(self.X_val),
+            # 'train_class_dist': np.bincount(self.y_train.astype(int)).tolist(),
+            # 'val_class_dist': np.bincount(self.y_val.astype(int)).tolist()
         }
+    
+import sys
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from utils import read_yaml
+if __name__ == '__main__':
+    config = read_yaml('config/model_training_config.yaml')
+    loader = TrainingDataLoader(config)
+    results = loader.get_metadata()
+    print(f'N_features: {results['n_features']}')
+    print(f'Feature names: {results['feature_names']}')
+    # print(f'Train size: {results['train_size']}')
+    # print(f'Val_size: {results['val_size']}')
+    # print(f'Train class dist: {results['train_class_dist']}')
+    # print(f'Val class dist: {results['val_class_dist']}')

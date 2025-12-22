@@ -17,7 +17,7 @@ from preprocessing.handle_outliers import OutlierHandler
 from preprocessing.encoding import FeatureEncoder
 from preprocessing.transformations import FeatureTransformer
 
-# ✨ NEW: Import new modules
+# NEW: Import new modules
 from preprocessing.config_validator import ConfigValidator
 from preprocessing.data_validator import DataValidator
 
@@ -33,7 +33,7 @@ class PreprocessingPipeline:
     
     ✅ FIXED: Encoding now happens AFTER split
     ✅ UPDATED: Data validation at multiple stages
-    ✨ NEW: Config validation before execution
+    NEW: Config validation before execution
     """
     
     def __init__(self):
@@ -57,9 +57,9 @@ class PreprocessingPipeline:
         self.feature_transformer = FeatureTransformer(self.config)
     
     def _load_and_validate_config(self, 
-                                  config_path: str = 'config/preprocessing_config.yaml') -> Dict:
+                                config_path: str = 'config/preprocessing_config.yaml') -> Dict:
         """
-        ✨ NEW: Load and validate configuration.
+        NEW: Load and validate configuration.
         
         Args:
             config_path: Path to configuration file
@@ -180,7 +180,7 @@ class PreprocessingPipeline:
             initial_rows = len(df)
             
             df = self.duplicate_handler.handle_duplicates(df)
-            df = self.missing_handler.handle_missing(df, fit=True)  # ✅ fit=True for initial cleaning
+            df = self.missing_handler.handle_missing(df, fit=True)  
             
             final_rows = len(df)
             self.logger.info(
@@ -258,7 +258,7 @@ class PreprocessingPipeline:
             raise
     
     def _save_datasets(self, train: pd.DataFrame, dev: pd.DataFrame, 
-                      test: pd.DataFrame) -> None:
+                    test: pd.DataFrame) -> None:
         """
         Save preprocessed datasets.
         
@@ -293,9 +293,9 @@ class PreprocessingPipeline:
             from datetime import datetime
             
             pipeline_obj = {
-                'version': '2.0-fixed',  # ✨ NEW: Version tracking
-                'created_at': datetime.now().isoformat(),  # ✨ NEW: Timestamp
-                'sklearn_version': sklearn.__version__,  # ✨ NEW: Dependencies
+                'version': '2.0-fixed',  
+                'created_at': datetime.now().isoformat(),  
+                'sklearn_version': sklearn.__version__,  
                 'pandas_version': pd.__version__,
                 'outlier_handler': self.outlier_handler,
                 'encoder': self.feature_encoder,
@@ -312,7 +312,7 @@ class PreprocessingPipeline:
             raise
     
     def _save_metadata(self, train: pd.DataFrame, dev: pd.DataFrame, 
-                       test: pd.DataFrame) -> None:
+                    test: pd.DataFrame) -> None:
         """
         ✨ NEW: Save preprocessing metadata for reproducibility.
         
