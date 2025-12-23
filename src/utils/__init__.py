@@ -5,6 +5,7 @@ from .io_utils import (read_csv, read_json,
 from .timer import get_timestamp, format_duration, get_date, get_datetime_str, Timer
 
 from .logger import setup_logger, get_logger
+from .loggerMixin import LoggerMixin
 
 __all__ = [
     'read_csv',
@@ -23,5 +24,6 @@ __all__ = [
     'get_datetime_str',
     'Timer',
     'setup_logger',
-    'get_logger'
+    'get_logger',
+    'LoggerMixin'
 ]

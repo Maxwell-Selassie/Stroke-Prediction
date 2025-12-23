@@ -7,11 +7,10 @@ from typing import Dict, Any, Optional
 import mlflow
 from mlflow.tracking import MlflowClient
 import numpy as np
+from utils import LoggerMixin
 
-logger = logging.getLogger(__name__)
 
-
-class ModelValidator:
+class ModelValidator(LoggerMixin):
     """
     Validate models before deployment with safety checks.
     
@@ -30,6 +29,7 @@ class ModelValidator:
             config: Configuration dictionary
         """
         self.config = config.get('model_validation', {})
+        self.logger = self.setup_class_logger('model_validator', config, 'logging')
         self.registry_config = config.get('mlflow', {}).get('model_registry', {})
         self.client = MlflowClient()
     
@@ -48,7 +48,7 @@ class ModelValidator:
         Returns:
             Validation results dictionary
         """
-        logger.info(f"Validating {stage} performance...")
+        self.logger.info(f"Validating {stage} performance...")
         
         thresholds = self.config.get('thresholds', {})
         results = {
@@ -82,7 +82,7 @@ class ModelValidator:
                 results['errors'].append(
                     f"{metric_name}={metric_value:.4f} below minimum {min_threshold}"
                 )
-                logger.error(f"✗ {metric_name}: {metric_value:.4f} < {min_threshold} (FAIL)")
+                self.logger.error(f"✗ {metric_name}: {metric_value:.4f} < {min_threshold} (FAIL)")
             
             # Check warning
             elif metric_value < warning_threshold:
@@ -90,15 +90,15 @@ class ModelValidator:
                 results['warnings'].append(
                     f"{metric_name}={metric_value:.4f} below warning threshold {warning_threshold}"
                 )
-                logger.warning(f"⚠ {metric_name}: {metric_value:.4f} < {warning_threshold} (WARNING)")
+                self.logger.warning(f"⚠ {metric_name}: {metric_value:.4f} < {warning_threshold} (WARNING)")
             
             # Check target
             elif metric_value >= target_threshold:
                 check_result['status'] = 'EXCELLENT'
-                logger.info(f"✓ {metric_name}: {metric_value:.4f} >= {target_threshold} (EXCELLENT)")
+                self.logger.info(f"✓ {metric_name}: {metric_value:.4f} >= {target_threshold} (EXCELLENT)")
             
             else:
-                logger.info(f"✓ {metric_name}: {metric_value:.4f} (PASS)")
+                self.logger.info(f"✓ {metric_name}: {metric_value:.4f} (PASS)")
             
             results['checks'][metric_name] = check_result
         
@@ -121,7 +121,7 @@ class ModelValidator:
         Returns:
             Validation results
         """
-        logger.info("Checking for overfitting...")
+        self.logger.info("Checking for overfitting...")
         
         train_score = train_metrics.get(primary_metric, 0)
         val_score = val_metrics.get(primary_metric, 0)
@@ -143,12 +143,12 @@ class ModelValidator:
         if gap > max_gap:
             result['status'] = 'FAIL'
             result['passed'] = False
-            logger.error(f"✗ Overfitting detected: gap={gap:.4f} ({gap_pct:.1f}%) > max={max_gap}")
+            self.logger.error(f"✗ Overfitting detected: gap={gap:.4f} ({gap_pct:.1f}%) > max={max_gap}")
         elif gap > warning_gap:
             result['status'] = 'WARNING'
-            logger.warning(f"⚠ Moderate overfitting: gap={gap:.4f} ({gap_pct:.1f}%)")
+            self.logger.warning(f"⚠ Moderate overfitting: gap={gap:.4f} ({gap_pct:.1f}%)")
         else:
-            logger.info(f"✓ No overfitting: gap={gap:.4f} ({gap_pct:.1f}%)")
+            self.logger.info(f"✓ No overfitting: gap={gap:.4f} ({gap_pct:.1f}%)")
         
         return result
     
@@ -167,7 +167,7 @@ class ModelValidator:
         Returns:
             Validation results
         """
-        logger.info("Validating business rules...")
+        self.logger.info("Validating business rules...")
         
         business_rules = self.config.get('business_rules', {})
         results = {
@@ -193,10 +193,10 @@ class ModelValidator:
             results['errors'].append(
                 f"Recall={actual_recall:.4f} below minimum {min_recall}"
             )
-            logger.error(f"✗ Recall: {actual_recall:.4f} < {min_recall} (rejecting too many good applicants)")
+            self.logger.error(f"✗ Recall: {actual_recall:.4f} < {min_recall} (rejecting too many good applicants)")
         else:
             recall_check['status'] = 'PASS'
-            logger.info(f"✓ Recall: {actual_recall:.4f} >= {min_recall}")
+            self.logger.info(f"✓ Recall: {actual_recall:.4f} >= {min_recall}")
         
         results['checks']['recall'] = recall_check
         
@@ -220,10 +220,10 @@ class ModelValidator:
                 results['errors'].append(
                     f"False Positive Rate={fpr:.4f} above maximum {max_fpr}"
                 )
-                logger.error(f"✗ FPR: {fpr:.4f} > {max_fpr} (approving too many bad loans)")
+                self.logger.error(f"✗ FPR: {fpr:.4f} > {max_fpr} (approving too many bad loans)")
             else:
                 fpr_check['status'] = 'PASS'
-                logger.info(f"✓ FPR: {fpr:.4f} <= {max_fpr}")
+                self.logger.info(f"✓ FPR: {fpr:.4f} <= {max_fpr}")
             
             results['checks']['false_positive_rate'] = fpr_check
         
@@ -245,10 +245,10 @@ class ModelValidator:
             Comparison results
         """
         if not self.registry_config.get('compare_with_production', True):
-            logger.info("Production comparison disabled")
+            self.logger.info("Production comparison disabled")
             return {'should_replace': True, 'reason': 'comparison_disabled'}
         
-        logger.info("Comparing with production model...")
+        self.logger.info("Comparing with production model...")
         
         try:
             model_name = self.registry_config.get('model_name', 'LoanEligibilityClassifier')
@@ -257,7 +257,7 @@ class ModelValidator:
             prod_versions = self.client.get_latest_versions(model_name, stages=["Production"])
             
             if not prod_versions:
-                logger.info("No production model found. New model will be first production model.")
+                self.logger.info("No production model found. New model will be first production model.")
                 return {
                     'should_replace': True,
                     'reason': 'no_production_model',
@@ -287,16 +287,16 @@ class ModelValidator:
             }
             
             if improvement >= min_improvement:
-                logger.info(f"✓ New model better: {new_score:.4f} vs {prod_score:.4f} (+{improvement_pct:.1f}%)")
+                self.logger.info(f"✓ New model better: {new_score:.4f} vs {prod_score:.4f} (+{improvement_pct:.1f}%)")
                 result['reason'] = 'better_performance'
             else:
-                logger.warning(f"✗ New model not better enough: {new_score:.4f} vs {prod_score:.4f} ({improvement_pct:+.1f}%)")
+                self.logger.warning(f"✗ New model not better enough: {new_score:.4f} vs {prod_score:.4f} ({improvement_pct:+.1f}%)")
                 result['reason'] = 'insufficient_improvement'
             
             return result
             
         except Exception as e:
-            logger.error(f"Failed to compare with production: {e}")
+            self.logger.error(f"Failed to compare with production: {e}")
             return {
                 'should_replace': False,
                 'reason': 'comparison_failed',
@@ -322,9 +322,9 @@ class ModelValidator:
         Returns:
             Complete validation results
         """
-        logger.info("\n" + "="*80)
-        logger.info("MODEL VALIDATION")
-        logger.info("="*80)
+        self.logger.info("\n" + "="*80)
+        self.logger.info("MODEL VALIDATION")
+        self.logger.info("="*80)
         
         validation_results = {
             'overall_passed': True,
@@ -357,21 +357,21 @@ class ModelValidator:
         validation_results['checks']['production_comparison'] = prod_comparison
         
         # Log summary
-        logger.info("\n" + "="*80)
-        logger.info("VALIDATION SUMMARY")
-        logger.info("="*80)
+        self.logger.info("\n" + "="*80)
+        self.logger.info("VALIDATION SUMMARY")
+        self.logger.info("="*80)
         
         if validation_results['overall_passed']:
-            logger.info("✓ ALL VALIDATION CHECKS PASSED")
+            self.logger.info("✓ ALL VALIDATION CHECKS PASSED")
         else:
-            logger.error("✗ VALIDATION FAILED")
+            self.logger.error("✗ VALIDATION FAILED")
             
             # Log all errors
             for check_name, check_result in validation_results['checks'].items():
                 if isinstance(check_result, dict) and not check_result.get('passed', True):
-                    logger.error(f"  Failed check: {check_name}")
+                    self.logger.error(f"  Failed check: {check_name}")
                     if 'errors' in check_result:
                         for error in check_result['errors']:
-                            logger.error(f"    - {error}")
+                            self.logger.error(f"    - {error}")
         
         return validation_results

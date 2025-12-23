@@ -11,11 +11,10 @@ from lightgbm import LGBMClassifier
 from sklearn.model_selection import cross_val_score, StratifiedKFold
 import logging
 import time
+from utils import LoggerMixin
 
-logger = logging.getLogger(__name__)
 
-
-class ModelTrainer:
+class ModelTrainer(LoggerMixin):
     """
     Train classification models with cross-validation.
     
@@ -35,6 +34,7 @@ class ModelTrainer:
             config: Configuration dictionary
         """
         self.config = config
+        self.logger = self.setup_class_logger('model_trainer', config, 'logging')
         self.model = None
         self.model_name = None
         self.training_time = 0.0
@@ -82,8 +82,8 @@ class ModelTrainer:
         Returns:
             Trained model
         """
-        logger.info(f"\nTraining {model_name}...")
-        logger.info("-"*60)
+        self.logger.info(f"\nTraining {model_name}...")
+        self.logger.info("-"*60)
         
         self.model_name = model_name
         
@@ -95,7 +95,7 @@ class ModelTrainer:
             else:
                 params = self.config['models']['tree_based'][model_name]['params']
         
-        logger.info(f"Parameters: {params}")
+        self.logger.info(f"Parameters: {params}")
         
         # Initialize model
         self.model = self._get_model_instance(model_name, params)
@@ -105,7 +105,7 @@ class ModelTrainer:
         self.model.fit(X_train, y_train)
         self.training_time = time.time() - start_time
         
-        logger.info(f"✓ Training completed in {self.training_time:.2f}s")
+        self.logger.info(f"✓ Training completed in {self.training_time:.2f}s")
         
         return self.model
     
@@ -129,10 +129,10 @@ class ModelTrainer:
         cv_config = self.config.get('cross_validation', {})
         
         if not cv_config.get('enabled', True):
-            logger.info("Cross-validation disabled")
+            self.logger.info("Cross-validation disabled")
             return {}
         
-        logger.info("Performing cross-validation...")
+        self.logger.info("Performing cross-validation...")
         
         n_splits = cv_config.get('n_splits', 10)
         shuffle = cv_config.get('shuffle', True)
@@ -163,8 +163,8 @@ class ModelTrainer:
             'cv_scores': cv_scores.tolist()
         }
         
-        logger.info(f"  CV {scoring}: {cv_results['cv_mean']:.4f} (+/- {cv_results['cv_std']:.4f})")
-        logger.info(f"  CV range: [{cv_results['cv_min']:.4f}, {cv_results['cv_max']:.4f}]")
+        self.logger.info(f"  CV {scoring}: {cv_results['cv_mean']:.4f} (+/- {cv_results['cv_std']:.4f})")
+        self.logger.info(f"  CV range: [{cv_results['cv_min']:.4f}, {cv_results['cv_max']:.4f}]")
         
         return cv_results
     

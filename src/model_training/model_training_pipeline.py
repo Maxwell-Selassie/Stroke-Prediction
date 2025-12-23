@@ -38,9 +38,6 @@ from model_training import (
     ModelValidator
 )
 
-import logging
-logger = logging.getLogger(__name__)
-
 
 class ModelTrainingError(Exception):
     """Custom exception for model training errors."""

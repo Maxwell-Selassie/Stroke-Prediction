@@ -13,14 +13,13 @@ from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 import logging
-
-logger = logging.getLogger(__name__)
+from utils import LoggerMixin
 
 # Suppress Optuna's verbose logging
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 
-class HyperparameterTuner:
+class HyperparameterTuner(LoggerMixin):
     """
     Hyperparameter tuning with Optuna.
     
@@ -39,6 +38,7 @@ class HyperparameterTuner:
             config: Configuration dictionary
         """
         self.config = config.get('hyperparameter_tuning', {})
+        self.logger = self.setup_class_logger('hyperparameter_tuner', config, 'logging')
         self.study = None
         self.best_params = None
         self.best_score = None
@@ -155,8 +155,8 @@ class HyperparameterTuner:
         Returns:
             Dictionary with best parameters and score
         """
-        logger.info(f"\nTuning hyperparameters for {model_name}...")
-        logger.info("="*60)
+        self.logger.info(f"\nTuning hyperparameters for {model_name}...")
+        self.logger.info("="*60)
         
         n_trials = self.config.get('n_trials', 50)
         timeout = self.config.get('timeout', 3600)
@@ -172,7 +172,7 @@ class HyperparameterTuner:
         )
         
         # Optimize
-        logger.info(f"Running {n_trials} trials...")
+        self.logger.info(f"Running {n_trials} trials...")
         
         self.study.optimize(
             lambda trial: self._objective_function(trial, model_name, X_train, y_train, scoring),
@@ -185,11 +185,11 @@ class HyperparameterTuner:
         self.best_params = self.study.best_params
         self.best_score = self.study.best_value
         
-        logger.info(f"\n✓ Tuning completed")
-        logger.info(f"  Best {scoring}: {self.best_score:.4f}")
-        logger.info(f"  Best parameters:")
+        self.logger.info(f"\n✓ Tuning completed")
+        self.logger.info(f"  Best {scoring}: {self.best_score:.4f}")
+        self.logger.info(f"  Best parameters:")
         for param, value in self.best_params.items():
-            logger.info(f"    {param}: {value}")
+            self.logger.info(f"    {param}: {value}")
         
         return {
             'best_params': self.best_params,

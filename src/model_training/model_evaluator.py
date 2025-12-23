@@ -10,11 +10,10 @@ from sklearn.metrics import (
     classification_report, brier_score_loss, log_loss
 )
 import logging
+from utils import LoggerMixin
 
-logger = logging.getLogger(__name__)
 
-
-class ModelEvaluator:
+class ModelEvaluator(LoggerMixin):
     """
     Evaluate trained models with comprehensive metrics.
     
@@ -31,6 +30,7 @@ class ModelEvaluator:
             config: Configuration dictionary
         """
         self.config = config.get('metrics', {})
+        self.logger = self.setup_class_logger('model_evaluator', config, 'logging')
         self.metrics_results = {}
     
     def evaluate(
@@ -52,8 +52,8 @@ class ModelEvaluator:
         Returns:
             Dictionary with all metrics
         """
-        logger.info(f"\nEvaluating on {dataset_name} set...")
-        logger.info("-"*60)
+        self.logger.info(f"\nEvaluating on {dataset_name} set...")
+        self.logger.info("-"*60)
         
         # Predictions
         y_pred = model.predict(X)
@@ -81,7 +81,7 @@ class ModelEvaluator:
                 continue
             
             results[metric_name] = float(score)
-            logger.info(f"  {metric_name}: {score:.4f}")
+            self.logger.info(f"  {metric_name}: {score:.4f}")
         
         # Calibration metrics
         if self.config.get('calibration_metrics', {}).get('enabled', True):
@@ -91,8 +91,8 @@ class ModelEvaluator:
             results['brier_score'] = float(brier)
             results['log_loss'] = float(logloss)
             
-            logger.info(f"  brier_score: {brier:.4f}")
-            logger.info(f"  log_loss: {logloss:.4f}")
+            self.logger.info(f"  brier_score: {brier:.4f}")
+            self.logger.info(f"  log_loss: {logloss:.4f}")
         
         # Confusion matrix
         if self.config.get('confusion_matrix', {}).get('enabled', True):
@@ -104,8 +104,8 @@ class ModelEvaluator:
             
             results['confusion_matrix'] = cm.tolist()
             
-            logger.info(f"\n  Confusion Matrix:")
-            logger.info(f"    {cm}")
+            self.logger.info(f"\n  Confusion Matrix:")
+            self.logger.info(f"    {cm}")
         
         # Classification report
         if self.config.get('classification_report', {}).get('enabled', True):
@@ -116,13 +116,13 @@ class ModelEvaluator:
             )
             results['classification_report'] = report
             
-            logger.info(f"\n  Per-class metrics:")
+            self.logger.info(f"\n  Per-class metrics:")
             for class_label in ['0', '1']:
                 if class_label in report:
-                    logger.info(f"    Class {class_label}:")
-                    logger.info(f"      Precision: {report[class_label]['precision']:.4f}")
-                    logger.info(f"      Recall: {report[class_label]['recall']:.4f}")
-                    logger.info(f"      F1-score: {report[class_label]['f1-score']:.4f}")
+                    self.logger.info(f"Class {class_label}:")
+                    self.logger.info(f"Precision: {report[class_label]['precision']:.4f}")
+                    self.logger.info(f"Recall: {report[class_label]['recall']:.4f}")
+                    self.logger.info(f"F1-score: {report[class_label]['f1-score']:.4f}")
         
         self.metrics_results[dataset_name] = results
         
@@ -143,8 +143,8 @@ class ModelEvaluator:
         Returns:
             Dictionary with comparison results
         """
-        logger.info("\nGeneralization Analysis:")
-        logger.info("-"*60)
+        self.logger.info("\nGeneralization Analysis:")
+        self.logger.info("-"*60)
         
         primary_metric = self.config.get('primary_metric', 'f1_score')
         
@@ -154,16 +154,16 @@ class ModelEvaluator:
         gap = train_score - val_score
         gap_pct = (gap / train_score * 100) if train_score > 0 else 0
         
-        logger.info(f"  Train {primary_metric}: {train_score:.4f}")
-        logger.info(f"  Val {primary_metric}: {val_score:.4f}")
-        logger.info(f"  Gap: {gap:.4f} ({gap_pct:.2f}%)")
+        self.logger.info(f"  Train {primary_metric}: {train_score:.4f}")
+        self.logger.info(f"  Val {primary_metric}: {val_score:.4f}")
+        self.logger.info(f"  Gap: {gap:.4f} ({gap_pct:.2f}%)")
         
         if gap > 0.10:
-            logger.warning(f"  ⚠ Large gap detected - possible overfitting!")
+            self.logger.warning(f"  ⚠ Large gap detected - possible overfitting!")
         elif gap < -0.05:
-            logger.warning(f"  ⚠ Negative gap - unusual, check data!")
+            self.logger.warning(f"  ⚠ Negative gap - unusual, check data!")
         else:
-            logger.info(f"  ✓ Acceptable generalization")
+            self.logger.info(f"  ✓ Acceptable generalization")
         
         return {
             'train_score': train_score,

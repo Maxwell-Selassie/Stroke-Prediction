@@ -6,11 +6,10 @@ import numpy as np
 from typing import Dict, Any, Optional
 from sklearn.inspection import permutation_importance
 import logging
+from utils import LoggerMixin
 
-logger = logging.getLogger(__name__)
 
-
-class FeatureImportanceAnalyzer:
+class FeatureImportanceAnalyzer(LoggerMixin):
     """
     Analyze feature importance using multiple methods.
     
@@ -29,6 +28,7 @@ class FeatureImportanceAnalyzer:
             feature_names: List of feature names
         """
         self.config = config.get('feature_importance', {})
+        self.logger = self.setup_class_logger('feature_imp_analyzer', config, 'logging')
         self.feature_names = feature_names
         self.importance_results = {}
     
@@ -52,11 +52,11 @@ class FeatureImportanceAnalyzer:
             Dictionary with importance scores
         """
         if not self.config.get('enabled', True):
-            logger.info("Feature importance analysis disabled")
+            self.logger.info("Feature importance analysis disabled")
             return {}
         
-        logger.info("\nAnalyzing feature importance...")
-        logger.info("-"*60)
+        self.logger.info("\nAnalyzing feature importance...")
+        self.logger.info("-"*60)
         
         results = {}
         
@@ -84,15 +84,15 @@ class FeatureImportanceAnalyzer:
                         ]
                     }
                     
-                    logger.info("  Native feature importance (top 10):")
+                    self.logger.info("  Native feature importance (top 10):")
                     for i in range(min(10, len(indices))):
                         idx = indices[i]
-                        logger.info(f"    {i+1}. {self.feature_names[idx]}: {importances[idx]:.4f}")
+                        self.logger.info(f"    {i+1}. {self.feature_names[idx]}: {importances[idx]:.4f}")
         
         # Permutation importance
         perm_config = self.config.get('methods', {}).get('permutation', {})
         if perm_config.get('enabled', True):
-            logger.info("\n  Computing permutation importance...")
+            self.logger.info("\n  Computing permutation importance...")
             
             n_repeats = perm_config.get('n_repeats', 10)
             random_state = perm_config.get('random_state', 42)
@@ -121,12 +121,12 @@ class FeatureImportanceAnalyzer:
                 ]
             }
             
-            logger.info("  Permutation importance (top 10):")
+            self.logger.info("  Permutation importance (top 10):")
             for i in range(min(10, len(indices))):
                 idx = indices[i]
                 mean_imp = perm_importance.importances_mean[idx]
                 std_imp = perm_importance.importances_std[idx]
-                logger.info(f"    {i+1}. {self.feature_names[idx]}: {mean_imp:.4f} (+/- {std_imp:.4f})")
+                self.logger.info(f"    {i+1}. {self.feature_names[idx]}: {mean_imp:.4f} (+/- {std_imp:.4f})")
         
         self.importance_results = results
         
